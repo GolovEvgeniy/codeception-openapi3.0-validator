@@ -1,0 +1,25 @@
+{
+    "name": "GolovEvgeniy/codeception-openapi3.0-validator",
+    "description": "Validate API requests and responses for compliance with the Swagger / OpenAPI 3.0 description",
+    "authors": [
+        {
+            "name": "Golov Evgeniy",
+            "email": "golov.evgeniy@google.com"
+        }
+    ],
+    "require": {
+        "php": "^7.3.0",
+        "codeception/codeception": "^3.1",
+        "vanilla/garden-schema": "^2.2",
+        "symfony/serializer": "^5.0.0"
+    }
+    ,
+    "require-dev": {
+        "roave/security-advisories": "dev-master"
+    },
+    "autoload": {
+        "psr-4": {
+            "Codeception\\Module\\": "src"
+        }
+    }
+}
