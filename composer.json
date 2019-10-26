@@ -10,8 +10,7 @@
     "require": {
         "php": "^7.3.0",
         "codeception/codeception": "^3.1",
-        "vanilla/garden-schema": "^2.2",
-        "symfony/serializer": "^5.0.0"
+        "vanilla/garden-schema": "^2.2"
     }
     ,
     "require-dev": {
