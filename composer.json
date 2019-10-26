@@ -1,5 +1,5 @@
 {
-    "name": "GolovEvgeniy/codeception-openapi3.0-validator",
+    "name": "golov-evgeniy/codeception-openapi3.0-validator",
     "description": "Validate API requests and responses for compliance with the Swagger / OpenAPI 3.0 description",
     "authors": [
         {
