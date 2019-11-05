@@ -98,6 +98,7 @@ EOF;
      */
     public function getSchema()
     {
+        $this->config['swagger'] = codecept_root_dir($this->config['swagger']);
         return Schema::parse(yaml_parse_file($this->config['swagger']));
     }
 
