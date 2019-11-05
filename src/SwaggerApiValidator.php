@@ -5,8 +5,13 @@ namespace Codeception\Module;
 use Codeception\Lib\InnerBrowser;
 use Codeception\Lib\Interfaces\DependsOnModule;
 use Codeception\Module;
-use Garden\Schema\RefNotFoundException;
-use Garden\Schema\Schema;
+use GuzzleHttp\Psr7\Request as Psr7Request;
+use GuzzleHttp\Psr7\Response as Psr7Response;
+use OpenAPIValidation\PSR7\Exception\ValidationFailed;
+use OpenAPIValidation\PSR7\RequestValidator;
+use OpenAPIValidation\PSR7\ResponseValidator;
+use OpenAPIValidation\PSR7\ValidatorBuilder;
+use Psr\Http\Message\RequestInterface;
 use Symfony\Component\BrowserKit\Request;
 use Symfony\Component\BrowserKit\Response;
 
@@ -18,7 +23,7 @@ class SwaggerApiValidator extends Module implements DependsOnModule
      * @var array
      */
     protected $config = [
-        'swagger' => ''
+        'swagger' => '',
     ];
 
     /**
@@ -32,19 +37,37 @@ Please, add REST module in configuration.
 modules:
     enabled:
         - SwaggerApiValidator:
-            depends: [REST]
+            depends: [REST, PhpBrowser]
 --
 EOF;
 
     /**
+     * Настроенный модуль браузера, с которым работает модуль REST.
+     *
      * @var InnerBrowser
      */
     protected $innerBrowser;
 
     /**
+     * Настроенный модуль REST.
+     *
      * @var REST
      */
     protected $rest;
+
+    /**
+     * Сообщение, с которым валится тест.
+     *
+     * @var string
+     */
+    protected $errorMessage = '';
+
+    /**
+     * Путь до файла со сваггер-описанием.
+     *
+     * @var string
+     */
+    protected $swaggerFile = '';
 
     /**
      * Specifies class or module which is required for current one.
@@ -56,7 +79,10 @@ EOF;
      */
     public function _depends(): array
     {
-        return [REST::class => $this->dependencyMessage];
+        return [
+            REST::class       => $this->dependencyMessage,
+            PhpBrowser::class => $this->dependencyMessage,
+        ];
     }
 
     /**
@@ -67,8 +93,9 @@ EOF;
      */
     public function _inject(REST $rest, InnerBrowser $innerBrowser)
     {
-        $this->rest = $rest;
+        $this->rest         = $rest;
         $this->innerBrowser = $innerBrowser;
+        $this->setSwaggerFile($this->config['swagger']);
     }
 
     /**
@@ -82,6 +109,18 @@ EOF;
     }
 
     /**
+     * Получаем отправленный запрос в формате PSR7.
+     *
+     * @return
+     */
+    public function getPSR7Request(): RequestInterface
+    {
+        $internalRequest = $this->getRequest();
+        $headers         = $this->innerBrowser->headers;
+        return new Psr7Request($internalRequest->getMethod(), $internalRequest->getUri(), $headers, $internalRequest->getContent());
+    }
+
+    /**
      * Получаем ответ на запрос в формате BrowserKit.
      *
      * @return Response
@@ -92,25 +131,87 @@ EOF;
     }
 
     /**
-     * Получаем объект схемы, описанной в swagger-файле.
+     * Получаем ответ на запрос в формате PSR7.
      *
-     * @return Schema
+     * @return Psr7Response
      */
-    public function getSchema()
+    public function getPsr7Response(): Psr7Response
     {
-        $this->config['swagger'] = codecept_root_dir($this->config['swagger']);
-        return Schema::parse(yaml_parse_file($this->config['swagger']));
+        $internalResponse = $this->getResponse();
+        return new Psr7Response($internalResponse->getStatus(), $internalResponse->getHeaders(), $internalResponse->getContent());
+    }
+
+    /**
+     * Получаем объект валидатора, описанный в swagger-файле.
+     *
+     * @return RequestValidator
+     */
+    public function getRequestValidator(): RequestValidator
+    {
+        return ( new ValidatorBuilder )->fromYamlFile($this->getSwaggerFile())->getRequestValidator();
+    }
+
+    /**
+     * Получаем объект валидатора, описанный в swagger-файле.
+     *
+     * @return ResponseValidator
+     */
+    public function getResponseValidator(): ResponseValidator
+    {
+        return ( new ValidatorBuilder )->fromYamlFile($this->getSwaggerFile())->getResponseValidator();
+    }
+
+    public function validateRequest()
+    {
+        $validator = $this->getRequestValidator();
+        $request   = $this->getPSR7Request();
+        try {
+            $validator->validate($request);
+        } catch (ValidationFailed $e) {
+            $this->errorMessage = $e->getMessage();
+            return false;
+        }
+        return true;
     }
 
     public function seeRequestIsValid()
     {
-        $schema = $this->getSchema();
-        $request = $this->getRequest();
+        $this->assertTrue($this->validateRequest(), $this->errorMessage);
+    }
+
+    public function validateResponse()
+    {
+        $validator = $this->getResponseValidator();
+        $request   = $this->getPSR7Request();
+        $response  = $this->getPSR7Response();
+        $operation = new \OpenAPIValidation\PSR7\OperationAddress($request->getUri(), $request->getMethod());
         try {
-            $result = $schema->isValid($request, ['request' => true]);
-        } catch (RefNotFoundException $e) {
-            $result = false;
+            $validator->validate($operation, $response);
+        } catch (ValidationFailed $e) {
+            $this->errorMessage = $e->getMessage();
+            return false;
         }
-        return $result;
+        return true;
+    }
+
+    public function seeResponseIsValid()
+    {
+        $this->assertTrue($this->validateResponse(), $this->errorMessage);
+    }
+
+    /**
+     * @return string
+     */
+    public function getSwaggerFile(): string
+    {
+        return $this->swaggerFile;
+    }
+
+    /**
+     * @param string $swaggerFile
+     */
+    public function setSwaggerFile(string $swaggerFile)
+    {
+        $this->swaggerFile = codecept_root_dir($swaggerFile);
     }
 }
