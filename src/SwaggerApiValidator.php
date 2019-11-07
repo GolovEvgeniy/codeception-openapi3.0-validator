@@ -8,6 +8,7 @@ use Codeception\Module;
 use GuzzleHttp\Psr7\Request as Psr7Request;
 use GuzzleHttp\Psr7\Response as Psr7Response;
 use OpenAPIValidation\PSR7\Exception\ValidationFailed;
+use OpenAPIValidation\PSR7\OperationAddress;
 use OpenAPIValidation\PSR7\RequestValidator;
 use OpenAPIValidation\PSR7\ResponseValidator;
 use OpenAPIValidation\PSR7\ValidatorBuilder;
@@ -32,7 +33,7 @@ class SwaggerApiValidator extends Module implements DependsOnModule
      * @var string
      */
     protected $dependencyMessage = <<<EOF
-Please, add REST module in configuration.
+Please, add REST and PhpBrowser module in configuration.
 --
 modules:
     enabled:
@@ -161,6 +162,11 @@ EOF;
         return ( new ValidatorBuilder )->fromYamlFile($this->getSwaggerFile())->getResponseValidator();
     }
 
+    /**
+     * Метод для валидации запроса.
+     *
+     * @return bool
+     */
     public function validateRequest()
     {
         $validator = $this->getRequestValidator();
@@ -174,17 +180,27 @@ EOF;
         return true;
     }
 
+    /**
+     * Метод, тестирующий запрос на соответствие сваггер-схеме.
+     *
+     * @return void
+     */
     public function seeRequestIsValid()
     {
         $this->assertTrue($this->validateRequest(), $this->errorMessage);
     }
 
+    /**
+     * Метод для валидации ответа.
+     *
+     * @return bool
+     */
     public function validateResponse()
     {
         $validator = $this->getResponseValidator();
         $request   = $this->getPSR7Request();
         $response  = $this->getPSR7Response();
-        $operation = new \OpenAPIValidation\PSR7\OperationAddress($request->getUri(), $request->getMethod());
+        $operation = new OperationAddress($request->getUri()->getPath(), strtolower($request->getMethod()));
         try {
             $validator->validate($operation, $response);
         } catch (ValidationFailed $e) {
@@ -194,12 +210,19 @@ EOF;
         return true;
     }
 
+    /**
+     * Метод, тестирующий запрос на соответствие сваггер-схеме.
+     *
+     * @return void
+     */
     public function seeResponseIsValid()
     {
         $this->assertTrue($this->validateResponse(), $this->errorMessage);
     }
 
     /**
+     * Получение сваггер-файла.
+     *
      * @return string
      */
     public function getSwaggerFile(): string
@@ -208,6 +231,8 @@ EOF;
     }
 
     /**
+     * Установка сваггер-файла.
+     *
      * @param string $swaggerFile
      */
     public function setSwaggerFile(string $swaggerFile)
