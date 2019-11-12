@@ -39,6 +39,7 @@ modules:
     enabled:
         - SwaggerApiValidator:
             depends: [REST, PhpBrowser]
+            swagger: '../docks/api/v1/swagger.yml'
 --
 EOF;
 
@@ -104,7 +105,7 @@ EOF;
      *
      * @return Request
      */
-    public function getRequest(): Request
+    protected function getRequest(): Request
     {
         return $this->rest->client->getInternalRequest();
     }
@@ -114,7 +115,7 @@ EOF;
      *
      * @return
      */
-    public function getPSR7Request(): RequestInterface
+    protected function getPSR7Request(): RequestInterface
     {
         $internalRequest = $this->getRequest();
         $headers         = $this->innerBrowser->headers;
@@ -126,7 +127,7 @@ EOF;
      *
      * @return Response
      */
-    public function getResponse(): Response
+    protected function getResponse(): Response
     {
         return $this->rest->client->getInternalResponse();
     }
@@ -136,7 +137,7 @@ EOF;
      *
      * @return Psr7Response
      */
-    public function getPsr7Response(): Psr7Response
+    protected function getPsr7Response(): Psr7Response
     {
         $internalResponse = $this->getResponse();
         return new Psr7Response($internalResponse->getStatus(), $internalResponse->getHeaders(), $internalResponse->getContent());
@@ -147,7 +148,7 @@ EOF;
      *
      * @return RequestValidator
      */
-    public function getRequestValidator(): RequestValidator
+    protected function getRequestValidator(): RequestValidator
     {
         return ( new ValidatorBuilder )->fromYamlFile($this->getSwaggerFile())->getRequestValidator();
     }
@@ -157,7 +158,7 @@ EOF;
      *
      * @return ResponseValidator
      */
-    public function getResponseValidator(): ResponseValidator
+    protected function getResponseValidator(): ResponseValidator
     {
         return ( new ValidatorBuilder )->fromYamlFile($this->getSwaggerFile())->getResponseValidator();
     }
@@ -167,7 +168,7 @@ EOF;
      *
      * @return bool
      */
-    public function validateRequest()
+    protected function validateRequest()
     {
         $validator = $this->getRequestValidator();
         $request   = $this->getPSR7Request();
@@ -195,7 +196,7 @@ EOF;
      *
      * @return bool
      */
-    public function validateResponse()
+    protected function validateResponse()
     {
         $validator = $this->getResponseValidator();
         $request   = $this->getPSR7Request();
@@ -225,8 +226,9 @@ EOF;
      *
      * @return string
      */
-    public function getSwaggerFile(): string
+    protected function getSwaggerFile(): string
     {
+        $this->assertFileExists($this->swaggerFile);
         return $this->swaggerFile;
     }
 

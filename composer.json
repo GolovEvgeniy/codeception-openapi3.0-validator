@@ -8,7 +8,7 @@
         }
     ],
     "require": {
-        "php": "^7.3.0",
+        "php": ">=7.2",
         "codeception/codeception": "^3.1",
         "league/openapi-psr7-validator": "^0.4",
         "ext-yaml": "*"
