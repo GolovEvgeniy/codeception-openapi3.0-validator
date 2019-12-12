@@ -5,6 +5,7 @@ namespace Codeception\Module;
 use Codeception\Lib\InnerBrowser;
 use Codeception\Lib\Interfaces\DependsOnModule;
 use Codeception\Module;
+use Codeception\TestInterface;
 use GuzzleHttp\Psr7\Request as Psr7Request;
 use GuzzleHttp\Psr7\Response as Psr7Response;
 use OpenAPIValidation\PSR7\Exception\ValidationFailed;
@@ -39,7 +40,6 @@ modules:
     enabled:
         - SwaggerApiValidator:
             depends: [REST, PhpBrowser]
-            swagger: '../docks/api/v1/swagger.yml'
 --
 EOF;
 
@@ -105,7 +105,7 @@ EOF;
      *
      * @return Request
      */
-    protected function getRequest(): Request
+    public function getRequest(): Request
     {
         return $this->rest->client->getInternalRequest();
     }
@@ -115,7 +115,7 @@ EOF;
      *
      * @return
      */
-    protected function getPSR7Request(): RequestInterface
+    public function getPSR7Request(): RequestInterface
     {
         $internalRequest = $this->getRequest();
         $headers         = $this->innerBrowser->headers;
@@ -127,7 +127,7 @@ EOF;
      *
      * @return Response
      */
-    protected function getResponse(): Response
+    public function getResponse(): Response
     {
         return $this->rest->client->getInternalResponse();
     }
@@ -137,7 +137,7 @@ EOF;
      *
      * @return Psr7Response
      */
-    protected function getPsr7Response(): Psr7Response
+    public function getPsr7Response(): Psr7Response
     {
         $internalResponse = $this->getResponse();
         return new Psr7Response($internalResponse->getStatus(), $internalResponse->getHeaders(), $internalResponse->getContent());
@@ -148,7 +148,7 @@ EOF;
      *
      * @return RequestValidator
      */
-    protected function getRequestValidator(): RequestValidator
+    public function getRequestValidator(): RequestValidator
     {
         return ( new ValidatorBuilder )->fromYamlFile($this->getSwaggerFile())->getRequestValidator();
     }
@@ -158,17 +158,12 @@ EOF;
      *
      * @return ResponseValidator
      */
-    protected function getResponseValidator(): ResponseValidator
+    public function getResponseValidator(): ResponseValidator
     {
         return ( new ValidatorBuilder )->fromYamlFile($this->getSwaggerFile())->getResponseValidator();
     }
 
-    /**
-     * Метод для валидации запроса.
-     *
-     * @return bool
-     */
-    protected function validateRequest()
+    public function validateRequest()
     {
         $validator = $this->getRequestValidator();
         $request   = $this->getPSR7Request();
@@ -182,26 +177,19 @@ EOF;
     }
 
     /**
-     * Метод, тестирующий запрос на соответствие сваггер-схеме.
-     *
-     * @return void
+     * Метод для проверки запроса на валидность в соответствии со сваггер-файлом.
      */
     public function seeRequestIsValid()
     {
         $this->assertTrue($this->validateRequest(), $this->errorMessage);
     }
 
-    /**
-     * Метод для валидации ответа.
-     *
-     * @return bool
-     */
-    protected function validateResponse()
+    public function validateResponse()
     {
         $validator = $this->getResponseValidator();
         $request   = $this->getPSR7Request();
         $response  = $this->getPSR7Response();
-        $operation = new OperationAddress($request->getUri()->getPath(), strtolower($request->getMethod()));
+        $operation = new OperationAddress($this->getPathPattern($request), strtolower($request->getMethod()));
         try {
             $validator->validate($operation, $response);
         } catch (ValidationFailed $e) {
@@ -212,9 +200,7 @@ EOF;
     }
 
     /**
-     * Метод, тестирующий запрос на соответствие сваггер-схеме.
-     *
-     * @return void
+     * Метод для проверки ответа на валидность в соответствии со сваггер-файлом.
      */
     public function seeResponseIsValid()
     {
@@ -222,23 +208,35 @@ EOF;
     }
 
     /**
-     * Получение сваггер-файла.
+     * Метод для получения ссылки на сваггер-файл.
      *
      * @return string
      */
-    protected function getSwaggerFile(): string
+    public function getSwaggerFile(): string
     {
-        $this->assertFileExists($this->swaggerFile);
         return $this->swaggerFile;
     }
 
     /**
-     * Установка сваггер-файла.
+     * Метод для установки ссылки на сваггер-файл.
      *
      * @param string $swaggerFile
      */
     public function setSwaggerFile(string $swaggerFile)
     {
         $this->swaggerFile = codecept_root_dir($swaggerFile);
+    }
+
+    /**
+     * Метод для получения шаблона пути.
+     * TODO сделать нормально, пока костыль.
+     *
+     * @param RequestInterface $request
+     *
+     * @return string
+     */
+    public function getPathPattern(RequestInterface $request): string
+    {
+        return preg_replace('/\/[0-9]+/', '/{id}', $request->getUri()->getPath());
     }
 }
